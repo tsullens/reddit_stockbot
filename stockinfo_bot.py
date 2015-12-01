@@ -18,8 +18,10 @@ stock_regex = re.compile('\$[a-z]+')
 baseurl = "https://query.yahooapis.com/v1/public/yql?q="
 endurl = "&format=json&diagnostics=true&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys&callback="
 yql_query = "select * from yahoo.finance.quotes where symbol in ".replace(" ", "%20")
-reply_template = Template("$$$sym | Ask:$ask | PctChange:$pctch | YearRange:$yrange | MktCap:$mktcap | PERatio:$peratio  \n")
-cache = deque([])
+reply_row = Template("$sym|$ask|$pctch|$yrange|$mktcap|$peratio  \n")
+reply_table = "Sym|Ask|%Change|YrRange|MktCap|PERatio\n:-----:|:-----:|:-----:|:-----:|:-----:|:-----:\n"
+sub_cache = deque([])
+comm_cache = deque([])
 
 
 def format_query(lst):
@@ -34,13 +36,12 @@ def get_json(query):
     result = urllib2.urlopen(yql_url).read()
     return json.loads(result)
 
-def sub_reply_text(data):
+def sub_reply_text(quotes, data):
     reply = ""
-
     def sub(stock):
         temp = ""
         try:
-            temp = reply_template.substitute(sym=stock['symbol'],
+            temp = reply_row.substitute(sym=stock['symbol'],
                                             ask=stock['Ask'],
                                             pctch=stock['PercentChange'],
                                             yrange=stock['YearRange'],
@@ -59,23 +60,46 @@ def sub_reply_text(data):
         return sub(data['query']['results']['quote'])
     return reply
 
-running = True
-while running:
+def proc_submissions():
     for submission in subreddit.get_new(limit=10):
-        if submission.id not in cache:
+        if submission.id not in sub_cache:
             op_text = submission.selftext.lower()
             quotes = set(re.findall(stock_regex, op_text))
             if quotes:
                 data = get_json(format_query(quotes))
-                reply_text = sub_reply_text(data)
+                reply_text = reply_table + sub_reply_text(quotes, data)
                 if(len(reply_text) > 0):
                     submission.add_comment(reply_text)
-                    cache.append(submission.id)
-                    print submission.id
-                    print sub_reply_text(data)
+                    sub_cache.append(submission.id)
+                    #print submission.id
+                    #print reply_text
                     sleep(120)
                 else:
-                    cache.append(submission.id)
-                if len(cache) > 10:
-                    cache.popleft()
+                    sub_cache.append(submission.id)
+                    if len(sub_cache) > 10:
+                        sub_cache.popleft()
+
+def proc_comments():
+    for comment in subreddit.get_comments(limit=35):
+        if comment.id not in comm_cache:
+            op_text = comment.body.lower()
+            quotes = set(re.findall(stock_regex, op_text))
+            if quotes:
+                data = get_json(format_query(quotes))
+                reply_text = reply_table + sub_reply_text(quotes, data)
+                if(len(reply_text) > 0):
+                    comment.reply(reply_text)
+                    comm_cache.append(comment.id)
+                    #print comment.id
+                    #print reply_text
+                    sleep(120)
+                else:
+                    comm_cache.append(submission.id)
+                if len(comm_cache) > 20:
+                    comm_cache.popleft()
+
+running = True
+while running:
+    proc_submissions()
+    proc_comments()
     sleep(300)
