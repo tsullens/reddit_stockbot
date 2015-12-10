@@ -8,7 +8,7 @@ from string import Template
 
 username = "stockinfo_bot"
 password = "Moder@tor"
-user_agent = "Stock Quote Info Bot by /u/foldLeft"
+user_agent = "Stock Quote Info Bot"
 
 r = praw.Reddit(user_agent)
 r.login(username, password)
