@@ -13,7 +13,7 @@ user_agent = "Stock Quote Info Bot"
 r = praw.Reddit(user_agent)
 r.login(username, password)
 
-subreddit = r.get_subreddit('wallstreetbets')
+subreddit = r.get_subreddit('')
 stock_regex = re.compile('\$[a-z]+')
 baseurl = "https://query.yahooapis.com/v1/public/yql?q="
 endurl = "&format=json&diagnostics=true&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys&callback="
